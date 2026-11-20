@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PricingSection from "@/components/PricingSection";
+import ThemeToggle from "@/components/ThemeToggle";
 import { MODELS, PLANS } from "@/lib/catalog";
 
 const providerNames: Record<string, string> = {
@@ -96,9 +97,12 @@ export default function Home() {
             <a href="#pricing" className="hover:text-ink">Pricing</a>
             <a href="#faq" className="hover:text-ink">FAQ</a>
           </div>
-          <Link href="/app" className="rounded-full bg-gold px-5 py-2 text-sm font-semibold text-on-gold hover:opacity-90">
-            Open app
-          </Link>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link href="/app" className="rounded-full bg-gold px-5 py-2 text-sm font-semibold text-on-gold hover:opacity-90">
+              Open app
+            </Link>
+          </div>
         </nav>
       </header>
 

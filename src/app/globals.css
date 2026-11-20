@@ -1,24 +1,49 @@
 @import "tailwindcss";
 
-/* AIMosaic brand tokens: light theme */
-@theme {
-  --color-canvas: #f6f6fc;      /* page background */
-  --color-surface: #ffffff;     /* cards, sidebar, header */
-  --color-surface-2: #eef0fb;   /* raised or hovered surfaces */
-  --color-line: #dcdff0;        /* borders */
-  --color-ink: #0b1437;         /* main text: brand deep navy */
-  --color-muted: #5b6485;       /* secondary text */
+/* `dark:` utilities follow the data-theme attribute set by the theme switch. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* AIMosaic brand tokens. Light is the default; dark overrides below. */
+:root {
+  --canvas: #f6f6fc;      /* page background */
+  --surface: #ffffff;     /* cards, sidebar, header */
+  --surface-2: #eef0fb;   /* raised or hovered surfaces */
+  --line: #dcdff0;        /* borders */
+  --ink: #0b1437;         /* main text */
+  --muted: #5b6485;       /* secondary text */
+  --gold-ink: #8a6500;    /* gold for text, dark enough to read on white */
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --canvas: #070d26;
+  --surface: #0b1437;
+  --surface-2: #131e4a;
+  --line: #1e2b63;
+  --ink: #e8ebf7;
+  --muted: #9aa3c7;
+  --gold-ink: #d4a72c;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-gold-ink: var(--gold-ink);
   --color-indigo-brand: #4f46e5;
   --color-purple-brand: #7c3aed;
-  --color-gold: #d4a72c;        /* fills and borders */
-  --color-gold-ink: #8a6500;    /* gold for text, dark enough to read on white */
-  --color-on-gold: #0b1437;     /* text on gold fills */
+  --color-gold: #d4a72c;     /* fills and borders */
+  --color-on-gold: #0b1437;  /* text on gold fills */
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 html { height: 100%; }
 body {
-  background: var(--color-canvas);
-  color: var(--color-ink);
+  background: var(--canvas);
+  color: var(--ink);
   font-family: var(--font-sans);
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import ThemeToggle from "./ThemeToggle";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface ModelOption {
@@ -378,9 +379,12 @@ export default function ChatWorkspace() {
               Demo mode: sample replies
             </span>
           )}
-          <span className="ml-auto text-sm text-muted md:hidden">
-            {wallet ? `${fmt(wallet.available)} tokens` : ""}
-          </span>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-sm text-muted md:hidden">
+              {wallet ? `${fmt(wallet.available)} tokens` : ""}
+            </span>
+            <ThemeToggle />
+          </div>
         </header>
 
         <section className="flex-1 overflow-y-auto px-4 py-6" onClick={() => setPickerOpen(false)}>
