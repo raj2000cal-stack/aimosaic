@@ -18,24 +18,36 @@ npm run typecheck
 npm run build
 ```
 
+## Connect the database
+
+1. Copy `.env.example` to `.env.local`.
+2. Paste your Postgres connection string (from Neon: Dashboard > Connect) as `DATABASE_URL`.
+3. Create the tables: `npm run db:migrate`
+4. Start the app: `npm run dev`. Plans, models and the demo user are created on first use.
+
+Never commit `.env.local` or paste the connection string anywhere public: it contains the database password.
+
 ## What is built so far
 
 | Area | Status |
 | --- | --- |
 | Next.js app, brand theme, landing page | Done |
-| Database schema (`src/db/schema.ts`, Drizzle + Postgres) | Written, not yet connected |
+| Database schema and migration (`src/db/schema.ts`, `drizzle/`) | Done |
 | Plan and model catalogue (`src/lib/catalog.ts`) | Done, with placeholder model ids and prices |
 | Model gateway (`src/lib/gateway.ts`) | Demo mode + OpenRouter streaming |
-| Token wallet, reserve and settle (`src/lib/wallet.ts`) | Done in memory, tested |
-| Chat with streaming and model picker | Done (history kept in the browser session only) |
+| Token wallet, reserve and settle | Done: in memory (`wallet.ts`) and Postgres (`wallet-pg.ts`), both tested |
+| Wallet ledger with real cost per message | Done (Postgres) |
+| Chat with streaming and model picker | Done |
+| Saved chats: list, reopen, delete | Done (needs `DATABASE_URL`) |
 | Compare Mode, up to 4 models | Basic version done |
 
 ## Not built yet
 
-- Sign-in (everyone is one demo user; the wallet resets when the server restarts)
-- Postgres persistence for chats, wallets and the ledger
+- Sign-in (everyone is one demo user sharing one wallet)
+- Monthly wallet reset, rollover and top-ups
+- Release of reservations left behind if the server crashes mid-reply
 - Consensus, Auto Mode, Prompt Enhancer, file uploads
-- Billing (Stripe, Razorpay), top-ups, refunds
+- Billing (Stripe, Razorpay), refunds
 - Admin console, rate limits, moderation
 - Legal pages
 

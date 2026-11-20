@@ -24,6 +24,17 @@ interface WalletInfo {
   monthlyTokens: number;
   plan: string;
   demoMode: boolean;
+  persistence: boolean;
+}
+interface SavedChat {
+  id: string;
+  title: string;
+}
+interface SavedMessage {
+  role: string;
+  content: string;
+  modelId: string | null;
+  walletDebit: number | null;
 }
 
 const META_SEPARATOR = "\u001e";
@@ -57,9 +68,19 @@ export default function ChatWorkspace() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const refreshChats = useCallback(() => {
+    fetch("/api/chats")
+      .then((r) => r.json())
+      .then((list) => Array.isArray(list) && setSavedChats(list))
+      .catch(() => undefined);
+  }, []);
+
   useEffect(() => {
+    refreshChats();
     fetch("/api/models")
       .then((r) => r.json())
       .then((list: ModelOption[]) => {
@@ -71,7 +92,44 @@ export default function ChatWorkspace() {
       .then((r) => r.json())
       .then(setWallet)
       .catch(() => undefined);
-  }, []);
+  }, [refreshChats]);
+
+  function newChat() {
+    setTurns([]);
+    setChatId(null);
+    setError(null);
+  }
+
+  async function openChat(id: string) {
+    if (busy) return;
+    const res = await fetch(`/api/chats/${id}`);
+    if (!res.ok) {
+      setError("Could not open that chat.");
+      return;
+    }
+    const msgs: SavedMessage[] = await res.json();
+    const loaded: Turn[] = [];
+    for (const m of msgs) {
+      if (m.role === "user") loaded.push({ prompt: m.content, answers: [] });
+      else if (m.role === "assistant" && loaded.length) {
+        loaded.at(-1)!.answers.push({
+          modelId: m.modelId ?? "unknown",
+          text: m.content,
+          done: true,
+          debit: m.walletDebit ?? undefined,
+        });
+      }
+    }
+    setTurns(loaded);
+    setChatId(id);
+    setError(null);
+  }
+
+  async function removeChat(id: string) {
+    await fetch(`/api/chats/${id}`, { method: "DELETE" }).catch(() => undefined);
+    if (id === chatId) newChat();
+    refreshChats();
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -107,7 +165,14 @@ export default function ChatWorkspace() {
     );
   }, []);
 
-  async function runModel(turnIndex: number, modelId: string, prompt: string, history: Turn[]) {
+  async function runModel(
+    turnIndex: number,
+    modelId: string,
+    prompt: string,
+    history: Turn[],
+    activeChatId: string | null,
+    recordPrompt: boolean,
+  ) {
     const messages = history.flatMap((t) => {
       const a = t.answers.find((x) => x.modelId === modelId) ?? t.answers[0];
       return [
@@ -120,7 +185,7 @@ export default function ChatWorkspace() {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ modelId, messages }),
+      body: JSON.stringify({ modelId, messages, chatId: activeChatId, recordPrompt }),
     });
     if (!res.ok || !res.body) {
       const j = await res.json().catch(() => ({}));
@@ -164,7 +229,26 @@ export default function ChatWorkspace() {
       { prompt, answers: selected.map((modelId) => ({ modelId, text: "", done: false })) },
     ]);
     try {
-      await Promise.all(selected.map((id) => runModel(turnIndex, id, prompt, history)));
+      // Saved chats: create the chat on the first message.
+      let activeChatId = chatId;
+      if (wallet?.persistence && !activeChatId) {
+        const res = await fetch("/api/chats", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: prompt }),
+        });
+        if (res.ok) {
+          activeChatId = (await res.json()).id;
+          setChatId(activeChatId);
+        }
+      }
+      // The first model records the prompt before the others start, so it is saved once.
+      const [first, ...rest] = selected;
+      const firstRun = runModel(turnIndex, first, prompt, history, activeChatId, true);
+      await Promise.all([
+        firstRun,
+        ...rest.map((id) => runModel(turnIndex, id, prompt, history, activeChatId, false)),
+      ]);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -173,6 +257,7 @@ export default function ChatWorkspace() {
         .then((r) => r.json())
         .then(setWallet)
         .catch(() => undefined);
+      refreshChats();
     }
   }
 
@@ -185,19 +270,46 @@ export default function ChatWorkspace() {
       <aside className="hidden w-64 shrink-0 flex-col border-r border-navy-700 bg-navy-900 p-4 md:flex">
         <Logo />
         <button
-          onClick={() => setTurns([])}
+          onClick={newChat}
           className="mt-6 rounded-lg bg-indigo-brand px-3 py-2 text-sm font-medium text-white hover:bg-purple-brand"
         >
           New chat
         </button>
-        <p className="mt-6 text-xs uppercase tracking-wider text-muted">This session</p>
+        <p className="mt-6 text-xs uppercase tracking-wider text-muted">
+          {wallet?.persistence ? "Your chats" : "This session (not saved)"}
+        </p>
         <ul className="mt-2 space-y-1 overflow-y-auto text-sm text-ink/80">
-          {turns.length === 0 && <li className="text-muted">No messages yet</li>}
-          {turns.map((t, i) => (
-            <li key={i} className="truncate rounded px-2 py-1 hover:bg-navy-800">
-              {t.prompt}
-            </li>
-          ))}
+          {wallet?.persistence ? (
+            <>
+              {savedChats.length === 0 && <li className="text-muted">No chats yet</li>}
+              {savedChats.map((c) => (
+                <li
+                  key={c.id}
+                  className={`group flex items-center rounded hover:bg-navy-800 ${c.id === chatId ? "bg-navy-800" : ""}`}
+                >
+                  <button onClick={() => void openChat(c.id)} className="min-w-0 flex-1 truncate px-2 py-1 text-left">
+                    {c.title}
+                  </button>
+                  <button
+                    onClick={() => void removeChat(c.id)}
+                    aria-label={`Delete chat ${c.title}`}
+                    className="px-2 text-muted opacity-0 hover:text-ink group-hover:opacity-100"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </>
+          ) : (
+            <>
+              {turns.length === 0 && <li className="text-muted">No messages yet</li>}
+              {turns.map((t, i) => (
+                <li key={i} className="truncate rounded px-2 py-1">
+                  {t.prompt}
+                </li>
+              ))}
+            </>
+          )}
         </ul>
         <div className="mt-auto rounded-xl border border-navy-700 bg-navy-800 p-3">
           <div className="flex items-baseline justify-between text-xs text-muted">
@@ -292,7 +404,7 @@ export default function ChatWorkspace() {
                   <div
                     className="grid gap-3"
                     style={{
-                      gridTemplateColumns: `repeat(${Math.min(t.answers.length, 4)}, minmax(0, 1fr))`,
+                      gridTemplateColumns: `repeat(${Math.max(1, Math.min(t.answers.length, 4))}, minmax(0, 1fr))`,
                     }}
                   >
                     {t.answers.map((a) => {

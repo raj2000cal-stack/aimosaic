@@ -1,12 +1,13 @@
 import { costUsd, estimateTokens, getModel } from "@/lib/catalog";
 import { streamChat, type ChatMessage, type Usage } from "@/lib/gateway";
-import { DEMO_USER_ID, MAX_OUTPUT_TOKENS, wallet } from "@/lib/server";
+import { ownsChat, saveAssistantMessage, saveUserMessage } from "@/lib/chats";
+import { MAX_OUTPUT_TOKENS, getContext } from "@/lib/server";
 
 /** Separates the streamed answer text from the trailing JSON metadata. */
 const META_SEPARATOR = "\u001e";
 
 export async function POST(req: Request) {
-  let body: { modelId?: string; messages?: ChatMessage[] };
+  let body: { modelId?: string; messages?: ChatMessage[]; chatId?: string; recordPrompt?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -25,10 +26,19 @@ export async function POST(req: Request) {
     return Response.json({ error: "Conversation too long" }, { status: 413 });
   }
 
+  const { userId, wallet, db } = await getContext();
+
+  // Saved chats: the chat must belong to this user.
+  const chatId = db && typeof body.chatId === "string" ? body.chatId : null;
+  if (db && chatId) {
+    const valid = /^[0-9a-f-]{36}$/i.test(chatId) && (await ownsChat(db, userId, chatId));
+    if (!valid) return Response.json({ error: "Unknown chat" }, { status: 404 });
+  }
+
   // 1. Reserve before any model call.
   const tokensInEstimate = estimateTokens(promptText);
   const reservation = await wallet.reserve(
-    DEMO_USER_ID,
+    userId,
     model.id,
     model.multiplier,
     tokensInEstimate,
@@ -39,6 +49,12 @@ export async function POST(req: Request) {
       { error: "insufficient_balance", message: "Not enough tokens. Top up or pick a 1x model." },
       { status: 402 },
     );
+  }
+
+  // In Compare Mode several requests share one prompt; only the first records it.
+  const lastMessage = messages.at(-1)!;
+  if (db && chatId && body.recordPrompt !== false && lastMessage.role === "user") {
+    await saveUserMessage(db, chatId, lastMessage.content);
   }
 
   const encoder = new TextEncoder();
@@ -87,7 +103,17 @@ export async function POST(req: Request) {
       const charge = failed && !out ? { tokensIn: 0, tokensOut: 0 } : usage;
       const cost = costUsd(model, charge.tokensIn, charge.tokensOut);
       const debit = await wallet.settle(reservation, charge.tokensIn, charge.tokensOut, cost);
-      const available = await wallet.available(DEMO_USER_ID);
+      const available = await wallet.available(userId);
+      if (db && chatId && out) {
+        await saveAssistantMessage(db, chatId, {
+          content: out,
+          modelId: model.id,
+          tokensIn: charge.tokensIn,
+          tokensOut: charge.tokensOut,
+          costUsd: cost,
+          walletDebit: debit,
+        }).catch((err) => console.error("could not save message", err));
+      }
 
       send(
         META_SEPARATOR +
