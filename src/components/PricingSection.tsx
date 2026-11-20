@@ -21,7 +21,7 @@ export default function PricingSection({ plans }: { plans: PlanInfo[] }) {
 
   return (
     <div>
-      <div className="mx-auto flex w-fit items-center gap-1 rounded-full border border-navy-700 bg-navy-900 p-1 text-sm">
+      <div className="mx-auto flex w-fit items-center gap-1 rounded-full border border-line bg-surface p-1 text-sm">
         {[
           ["Monthly", false],
           ["Yearly", true],
@@ -35,7 +35,7 @@ export default function PricingSection({ plans }: { plans: PlanInfo[] }) {
             }`}
           >
             {label}
-            {value && <span className="ml-2 rounded-full bg-gold px-2 py-0.5 text-xs text-navy-950">Save up to 30%</span>}
+            {value && <span className="ml-2 rounded-full bg-gold px-2 py-0.5 text-xs text-on-gold">Save up to 30%</span>}
           </button>
         ))}
       </div>
@@ -49,17 +49,17 @@ export default function PricingSection({ plans }: { plans: PlanInfo[] }) {
             <div
               key={p.id}
               className={`relative flex flex-col rounded-3xl border p-6 ${
-                featured ? "border-gold bg-navy-800 shadow-[0_0_60px_-20px] shadow-gold/40" : "border-navy-700 bg-navy-900"
+                featured ? "border-gold bg-surface-2 shadow-[0_0_60px_-20px] shadow-gold/40" : "border-line bg-surface"
               }`}
             >
               {featured && (
-                <span className="absolute -top-3 left-6 rounded-full bg-gold px-3 py-0.5 text-xs font-semibold text-navy-950">
+                <span className="absolute -top-3 left-6 rounded-full bg-gold px-3 py-0.5 text-xs font-semibold text-on-gold">
                   Most popular
                 </span>
               )}
               <h3 className="text-lg font-semibold">{p.name}</h3>
               <p className="mt-3">
-                <span className="text-4xl font-semibold tracking-tight text-gold">{dollars(monthlyCents)}</span>
+                <span className="text-4xl font-semibold tracking-tight text-gold-ink">{dollars(monthlyCents)}</span>
                 <span className="text-sm text-muted">{p.id === "team" ? " / seat / month" : " / month"}</span>
               </p>
               <p className="mt-1 h-5 text-xs text-muted">
@@ -69,7 +69,7 @@ export default function PricingSection({ plans }: { plans: PlanInfo[] }) {
                     ? `${dollars(p.priceYearlyCents!)} billed yearly`
                     : "Billed monthly"}
               </p>
-              <p className="mt-4 rounded-xl bg-navy-950/60 px-3 py-2 text-sm">
+              <p className="mt-4 rounded-xl bg-canvas/60 px-3 py-2 text-sm">
                 <span className="font-semibold text-ink">{p.monthlyTokens.toLocaleString("en-US")}</span>
                 <span className="text-muted"> tokens every month</span>
               </p>
@@ -84,7 +84,7 @@ export default function PricingSection({ plans }: { plans: PlanInfo[] }) {
               <Link
                 href="/app"
                 className={`mt-6 rounded-xl px-4 py-2.5 text-center text-sm font-semibold ${
-                  featured ? "bg-gold text-navy-950 hover:opacity-90" : "border border-navy-700 text-ink hover:border-indigo-brand"
+                  featured ? "bg-gold text-on-gold hover:opacity-90" : "border border-line text-ink hover:border-indigo-brand"
                 }`}
               >
                 {p.priceMonthlyCents === 0 ? "Start free" : `Choose ${p.name}`}

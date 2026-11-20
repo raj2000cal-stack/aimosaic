@@ -53,7 +53,7 @@ function Logo() {
         ))}
       </div>
       <span className="text-lg font-semibold tracking-tight">
-        AI<span className="text-gold">Mosaic</span>
+        AI<span className="text-gold-ink">Mosaic</span>
       </span>
     </div>
   );
@@ -267,7 +267,7 @@ export default function ChatWorkspace() {
   return (
     <div className="flex h-dvh">
       {/* Sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-navy-700 bg-navy-900 p-4 md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-line bg-surface p-4 md:flex">
         <Logo />
         <button
           onClick={newChat}
@@ -285,7 +285,7 @@ export default function ChatWorkspace() {
               {savedChats.map((c) => (
                 <li
                   key={c.id}
-                  className={`group flex items-center rounded hover:bg-navy-800 ${c.id === chatId ? "bg-navy-800" : ""}`}
+                  className={`group flex items-center rounded hover:bg-surface-2 ${c.id === chatId ? "bg-surface-2" : ""}`}
                 >
                   <button onClick={() => void openChat(c.id)} className="min-w-0 flex-1 truncate px-2 py-1 text-left">
                     {c.title}
@@ -311,16 +311,16 @@ export default function ChatWorkspace() {
             </>
           )}
         </ul>
-        <div className="mt-auto rounded-xl border border-navy-700 bg-navy-800 p-3">
+        <div className="mt-auto rounded-xl border border-line bg-surface-2 p-3">
           <div className="flex items-baseline justify-between text-xs text-muted">
             <span>{wallet?.plan ?? "Plan"} wallet</span>
             <span>{wallet ? `${pct.toFixed(0)}% left` : ""}</span>
           </div>
-          <div className="mt-1 text-lg font-semibold text-gold">
+          <div className="mt-1 text-lg font-semibold text-gold-ink">
             {wallet ? fmt(wallet.available) : "..."}
             <span className="ml-1 text-xs font-normal text-muted">tokens</span>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-navy-700">
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
             <div className="h-full rounded-full bg-gold" style={{ width: `${pct}%` }} />
           </div>
         </div>
@@ -328,14 +328,14 @@ export default function ChatWorkspace() {
 
       {/* Main */}
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center gap-3 border-b border-navy-700 bg-navy-900 px-4 py-3">
+        <header className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-3">
           <div className="md:hidden">
             <Logo />
           </div>
           <div className="relative">
             <button
               onClick={() => setPickerOpen((o) => !o)}
-              className="rounded-lg border border-navy-700 bg-navy-800 px-3 py-1.5 text-sm hover:border-indigo-brand"
+              className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-sm hover:border-indigo-brand"
             >
               {comparing
                 ? `Comparing ${selected.length} models`
@@ -343,7 +343,7 @@ export default function ChatWorkspace() {
               <span className="ml-2 text-muted">▾</span>
             </button>
             {pickerOpen && (
-              <div className="absolute left-0 z-10 mt-2 w-72 rounded-xl border border-navy-700 bg-navy-800 p-2 shadow-xl">
+              <div className="absolute left-0 z-10 mt-2 w-72 rounded-xl border border-line bg-surface-2 p-2 shadow-xl">
                 <p className="px-2 pb-1 text-xs text-muted">
                   Pick one model, or up to {MAX_COMPARE} to compare side by side.
                 </p>
@@ -354,14 +354,14 @@ export default function ChatWorkspace() {
                       <li key={m.id}>
                         <button
                           onClick={() => toggleModel(m.id)}
-                          className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-navy-700 ${on ? "bg-navy-700" : ""}`}
+                          className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-line ${on ? "bg-line" : ""}`}
                         >
                           <span>
-                            <span className={`mr-2 inline-block h-2 w-2 rounded-sm ${on ? "bg-gold" : "bg-navy-700 ring-1 ring-muted/40"}`} />
+                            <span className={`mr-2 inline-block h-2 w-2 rounded-sm ${on ? "bg-gold" : "bg-line ring-1 ring-muted/40"}`} />
                             {m.displayName}
                           </span>
                           <span
-                            className={`rounded px-1.5 py-0.5 text-xs ${m.tier === "premium" ? "bg-purple-brand/25 text-ink" : "bg-navy-900 text-muted"}`}
+                            className={`rounded px-1.5 py-0.5 text-xs ${m.tier === "premium" ? "bg-purple-brand/25 text-ink" : "bg-surface text-muted"}`}
                           >
                             {m.multiplier}x
                           </span>
@@ -374,7 +374,7 @@ export default function ChatWorkspace() {
             )}
           </div>
           {wallet?.demoMode && (
-            <span className="rounded-full border border-gold/50 px-2.5 py-0.5 text-xs text-gold">
+            <span className="rounded-full border border-gold/50 px-2.5 py-0.5 text-xs text-gold-ink">
               Demo mode: sample replies
             </span>
           )}
@@ -387,7 +387,7 @@ export default function ChatWorkspace() {
           {turns.length === 0 ? (
             <div className="mx-auto mt-16 max-w-xl text-center">
               <h1 className="text-3xl font-semibold tracking-tight">
-                Every leading AI model, <span className="text-gold">one workspace</span>
+                Every leading AI model, <span className="text-gold-ink">one workspace</span>
               </h1>
               <p className="mt-3 text-muted">
                 Ask one model, or select several to compare answers side by side. Your wallet and the
@@ -410,9 +410,9 @@ export default function ChatWorkspace() {
                     {t.answers.map((a) => {
                       const m = byId.get(a.modelId);
                       return (
-                        <article key={a.modelId} className="min-w-0 rounded-2xl border border-navy-700 bg-navy-900 p-4">
+                        <article key={a.modelId} className="min-w-0 rounded-2xl border border-line bg-surface p-4">
                           <div className="mb-2 flex items-center justify-between text-xs">
-                            <span className="font-semibold text-gold">{m?.displayName ?? a.modelId}</span>
+                            <span className="font-semibold text-gold-ink">{m?.displayName ?? a.modelId}</span>
                             <span className="text-muted">
                               {a.done && a.debit !== undefined
                                 ? `${fmt(a.debit)} tokens`
@@ -433,10 +433,10 @@ export default function ChatWorkspace() {
           )}
         </section>
 
-        <footer className="border-t border-navy-700 bg-navy-900 px-4 py-3">
+        <footer className="border-t border-line bg-surface px-4 py-3">
           <div className="mx-auto max-w-4xl">
-            {error && <p className="mb-2 text-sm text-red-300">{error}</p>}
-            <div className="flex items-end gap-2 rounded-2xl border border-navy-700 bg-navy-800 p-2 focus-within:border-indigo-brand">
+            {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+            <div className="flex items-end gap-2 rounded-2xl border border-line bg-surface-2 p-2 focus-within:border-indigo-brand">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -453,7 +453,7 @@ export default function ChatWorkspace() {
               <button
                 onClick={() => void send()}
                 disabled={busy || !input.trim()}
-                className="rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-navy-950 disabled:opacity-40"
+                className="rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-on-gold disabled:opacity-40"
               >
                 {busy ? "Sending" : "Send"}
               </button>

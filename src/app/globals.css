@@ -1,22 +1,24 @@
 @import "tailwindcss";
 
-/* AIMosaic brand tokens */
+/* AIMosaic brand tokens: light theme */
 @theme {
-  --color-navy-950: #070d26;
-  --color-navy-900: #0b1437;
-  --color-navy-800: #131e4a;
-  --color-navy-700: #1e2b63;
+  --color-canvas: #f6f6fc;      /* page background */
+  --color-surface: #ffffff;     /* cards, sidebar, header */
+  --color-surface-2: #eef0fb;   /* raised or hovered surfaces */
+  --color-line: #dcdff0;        /* borders */
+  --color-ink: #0b1437;         /* main text: brand deep navy */
+  --color-muted: #5b6485;       /* secondary text */
   --color-indigo-brand: #4f46e5;
   --color-purple-brand: #7c3aed;
-  --color-gold: #d4a72c;
-  --color-ink: #e8ebf7;
-  --color-muted: #9aa3c7;
+  --color-gold: #d4a72c;        /* fills and borders */
+  --color-gold-ink: #8a6500;    /* gold for text, dark enough to read on white */
+  --color-on-gold: #0b1437;     /* text on gold fills */
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 html { height: 100%; }
 body {
-  background: var(--color-navy-950);
+  background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
