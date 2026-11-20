@@ -39,6 +39,26 @@ With `DATABASE_URL` set, the workspace requires sign-in (email and password). Wi
 
 Set `ADMIN_EMAILS` to a comma-separated list of account emails. Those accounts see an Admin link in the workspace and can open `/admin`. Everyone else gets "Page not found".
 
+## Billing (Stripe)
+
+Billing is off until the Stripe settings are filled in; until then every account is free and `/billing` says so.
+
+**Status: written against Stripe's documented API and tested only with simulated, correctly signed webhook events. It has never talked to Stripe. Run every step below in Stripe test mode before taking real money.**
+
+1. In Stripe (test mode) create two products, Plus and Pro, each with a monthly and a yearly recurring price, and a one-off price for the 1,000,000-token top-up. Copy the five price ids into the `STRIPE_PRICE_*` settings.
+2. Add a webhook endpoint pointing at `https://YOUR-DOMAIN/api/billing/webhook` for these events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`. Copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
+3. Set `STRIPE_SECRET_KEY` and `APP_URL`, then run `npm run db:migrate`.
+4. Turn on the customer portal in Stripe so "Manage billing" works (plan changes, card updates, cancellation).
+5. Test with a Stripe test card: subscribe, check the plan and wallet change, upgrade in the portal, buy a top-up, cancel.
+
+How it behaves:
+- A new subscription sets the plan and tops the wallet up to the plan's monthly allowance.
+- Plan changes and cancellations made in the Stripe portal arrive by webhook. A cancelled user returns to Free and keeps remaining tokens until the next monthly reset.
+- Each webhook event and each payment is applied once, even if Stripe sends it twice.
+- Refunds are issued by hand in the Stripe dashboard; adjust tokens in the admin console. Self-serve refunds are not built.
+- Razorpay (UPI for India) is not built. The plan and wallet logic in `src/lib/billing.ts` is provider-neutral so it can be added beside Stripe.
+- The Team plan (per seat) is not sold yet.
+
 ## Check the model catalogue
 
 `npm run models:check` compares `src/lib/catalog.ts` with OpenRouter's live model list and prices. Run it, fix any `MISSING` or `PRICE` lines in the catalogue, and re-run until it is clean.
@@ -68,12 +88,13 @@ Set `ADMIN_EMAILS` to a comma-separated list of account emails. Those accounts s
 | Monthly wallet reset with rollover (capped at one month) and expiry ledger rows | Done, tested |
 | Admin console at `/admin`: usage, cost by model, users by cost, plan and token changes | Done |
 | Token policy, privacy, terms and refund pages | Drafts, marked for legal review |
+| Billing with Stripe: subscriptions, top-ups, customer portal, webhooks, revenue in admin | Written; tested with simulated events only |
 | Model catalogue | Placeholder ids and prices; run `npm run models:check` |
 
 ## Not built yet
 
 - Email verification and password reset (need an email-sending service)
-- Billing (Stripe, Razorpay), top-ups, monthly wallet reset and rollover
+- Razorpay, self-serve refunds, Team (per-seat) billing, tax settings
 - Admin: switching models on and off, and revenue or margin (needs billing)
 - Content moderation
 - Release of reservations left behind if the server crashes mid-reply
@@ -84,4 +105,4 @@ Set `ADMIN_EMAILS` to a comma-separated list of account emails. Those accounts s
 1. Run `npm run models:check` and fix the catalogue.
 2. Set each model's multiplier from real cost so the worst-case subscriber costs less than the plan price.
 3. Have a lawyer review the four policy pages and fill in the bracketed placeholders.
-4. Add billing before charging anyone; until then every account is free.
+4. Test billing end to end in Stripe test mode before charging anyone.

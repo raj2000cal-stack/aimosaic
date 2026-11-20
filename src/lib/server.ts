@@ -20,6 +20,7 @@ export interface Ctx {
   plan: PlanInfo;
   /** Admins are users with role "admin", or whose email is listed in ADMIN_EMAILS. */
   isAdmin: boolean;
+  stripeCustomerId: string | null;
   wallet: Wallet;
   /** null in demo mode: chats are not saved. */
   db: Db | null;
@@ -51,7 +52,7 @@ export function getBase() {
 export async function getContext(): Promise<Ctx | null> {
   const { db, demoWallet } = await getBase();
   if (!db) {
-    return { userId: "demo-user", email: null, plan: DEMO_PLAN, isAdmin: false, wallet: demoWallet!, db: null };
+    return { userId: "demo-user", email: null, plan: DEMO_PLAN, isAdmin: false, stripeCustomerId: null, wallet: demoWallet!, db: null };
   }
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const user = await getSessionUser(db, token);
@@ -64,6 +65,7 @@ export async function getContext(): Promise<Ctx | null> {
     email: user.email,
     plan,
     isAdmin: user.role === "admin" || adminEmails.includes(user.email),
+    stripeCustomerId: user.stripeCustomerId,
     wallet: new Wallet(new PgWalletStore(db)),
     db,
   };

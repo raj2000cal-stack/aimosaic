@@ -82,7 +82,7 @@ export default function PricingSection({ plans }: { plans: PlanInfo[] }) {
                 ))}
               </ul>
               <Link
-                href="/app"
+                href={p.priceMonthlyCents === 0 || p.id === "team" ? "/app" : "/billing"}
                 className={`mt-6 rounded-xl px-4 py-2.5 text-center text-sm font-semibold ${
                   featured ? "bg-gold text-on-gold hover:opacity-90" : "border border-line text-ink hover:border-indigo-brand"
                 }`}

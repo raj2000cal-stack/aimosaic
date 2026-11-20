@@ -125,12 +125,13 @@ export interface SessionUser {
   email: string;
   planId: string;
   role: string;
+  stripeCustomerId: string | null;
 }
 
 export async function getSessionUser(db: Db, token: string | undefined): Promise<SessionUser | null> {
   if (!token || token.length > 200) return null;
   const [row] = await db
-    .select({ id: users.id, email: users.email, planId: users.planId, role: users.role })
+    .select({ id: users.id, email: users.email, planId: users.planId, role: users.role, stripeCustomerId: users.stripeCustomerId })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(and(eq(sessions.id, tokenId(token)), gt(sessions.expiresAt, new Date())));

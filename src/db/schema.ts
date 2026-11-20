@@ -31,6 +31,7 @@ export const users = pgTable("users", {
   name: text("name"),
   passwordHash: text("password_hash"), // scrypt; null for accounts without a password
   planId: text("plan_id").notNull().default("free").references(() => plans.id),
+  stripeCustomerId: text("stripe_customer_id").unique(),
   role: text("role").notNull().default("user"), // user | admin
   createdAt: createdAt(),
 });
@@ -163,4 +164,11 @@ export const rateLimits = pgTable("rate_limits", {
   key: text("key").primaryKey(),
   windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
   count: integer("count").notNull(),
+});
+
+/** Webhook events already processed, so a repeated delivery is applied once. */
+export const billingEvents = pgTable("billing_events", {
+  id: text("id").primaryKey(), // provider event id
+  type: text("type").notNull(),
+  createdAt: createdAt(),
 });

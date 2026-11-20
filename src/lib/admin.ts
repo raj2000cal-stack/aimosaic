@@ -1,7 +1,7 @@
 /** Admin reporting and account changes. */
 import { desc, eq, gte, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { users, walletLedger, wallets } from "@/db/schema";
+import { payments, users, walletLedger, wallets } from "@/db/schema";
 import { PLANS } from "./catalog";
 
 const num = (v: unknown) => Number(v ?? 0);
@@ -53,8 +53,15 @@ export async function overview(db: Db, days = 30) {
     .orderBy(desc(cost), users.email)
     .limit(50);
 
+  const revenue = await db
+    .select({ currency: payments.currency, cents: sql<number>`coalesce(sum(${payments.amountCents}), 0)` })
+    .from(payments)
+    .where(gte(payments.createdAt, since))
+    .groupBy(payments.currency);
+
   return {
     days,
+    revenue: revenue.map((r) => ({ currency: r.currency, amount: num(r.cents) / 100 })),
     users: byPlan.reduce((s, r) => s + num(r.count), 0),
     byPlan: byPlan.map((r) => ({ planId: r.planId, count: num(r.count) })),
     totals: { calls: num(totals?.calls), tokens: num(totals?.tokens), costUsd: num(totals?.costUsd) },

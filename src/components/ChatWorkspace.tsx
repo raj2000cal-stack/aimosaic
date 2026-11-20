@@ -436,6 +436,9 @@ export default function ChatWorkspace() {
           {wallet?.email && (
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-2 text-xs text-muted">
               <span className="truncate" title={wallet.email}>{wallet.email}</span>
+              <a href="/billing" className="shrink-0 font-medium text-ink hover:underline">
+                Billing
+              </a>
               {wallet.isAdmin && (
                 <a href="/admin" className="shrink-0 font-medium text-ink hover:underline">
                   Admin

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 interface Overview {
   days: number;
+  revenue: { currency: string; amount: number }[];
   users: number;
   byPlan: { planId: string; count: number }[];
   totals: { calls: number; tokens: number; costUsd: number };
@@ -80,7 +81,8 @@ export default function AdminConsole() {
         <Link href="/app" className="text-sm text-muted hover:text-ink">Back to the workspace</Link>
       </div>
       <p className="mt-1 text-sm text-muted">
-        Costs come from the catalogue prices. Revenue is not shown because billing is not connected yet.
+        Costs come from the catalogue prices. Payments received in the last {data.days} days:{" "}
+        {data.revenue.length ? data.revenue.map((r) => `${r.amount.toFixed(2)} ${r.currency.toUpperCase()}`).join(", ") : "none yet"}.
       </p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
