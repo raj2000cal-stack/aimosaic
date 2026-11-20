@@ -12,11 +12,14 @@ import { PLANS, type PlanInfo } from "./catalog";
 import { syncCatalog } from "./chats";
 import { MemoryWalletStore, Wallet } from "./wallet";
 import { PgWalletStore } from "./wallet-pg";
+import { renewWalletIfDue } from "./wallet-period";
 
 export interface Ctx {
   userId: string;
   email: string | null;
   plan: PlanInfo;
+  /** Admins are users with role "admin", or whose email is listed in ADMIN_EMAILS. */
+  isAdmin: boolean;
   wallet: Wallet;
   /** null in demo mode: chats are not saved. */
   db: Db | null;
@@ -48,15 +51,19 @@ export function getBase() {
 export async function getContext(): Promise<Ctx | null> {
   const { db, demoWallet } = await getBase();
   if (!db) {
-    return { userId: "demo-user", email: null, plan: DEMO_PLAN, wallet: demoWallet!, db: null };
+    return { userId: "demo-user", email: null, plan: DEMO_PLAN, isAdmin: false, wallet: demoWallet!, db: null };
   }
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const user = await getSessionUser(db, token);
   if (!user) return null;
+  const plan = PLANS.find((p) => p.id === user.planId) ?? FREE_PLAN;
+  await renewWalletIfDue(db, user.id, plan); // monthly reset, when due
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
   return {
     userId: user.id,
     email: user.email,
-    plan: PLANS.find((p) => p.id === user.planId) ?? FREE_PLAN,
+    plan,
+    isAdmin: user.role === "admin" || adminEmails.includes(user.email),
     wallet: new Wallet(new PgWalletStore(db)),
     db,
   };

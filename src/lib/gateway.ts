@@ -28,22 +28,29 @@ export async function* streamChat(opts: {
   messages: ChatMessage[];
   maxTokens: number;
   signal?: AbortSignal;
+  /** Reply to use in demo mode instead of the generic sample text. */
+  demoReply?: string;
 }): AsyncGenerator<GatewayEvent> {
   if (isDemoMode()) {
-    yield* demoStream(opts.model, opts.messages);
+    yield* demoStream(opts.model, opts.messages, opts.demoReply);
     return;
   }
   yield* openRouterStream(opts);
 }
 
-async function* demoStream(model: ModelInfo, messages: ChatMessage[]): AsyncGenerator<GatewayEvent> {
+async function* demoStream(
+  model: ModelInfo,
+  messages: ChatMessage[],
+  demoReply?: string,
+): AsyncGenerator<GatewayEvent> {
   const last = messages.at(-1)?.content ?? "";
   const reply =
+    demoReply ??
     `[Demo mode: ${model.displayName}] No model key is configured, so this is a sample reply. ` +
     `You asked: "${last.slice(0, 160)}". Add OPENROUTER_API_KEY to .env.local to get real answers. ` +
     `Metering still runs: this reply is charged to the wallet at ${model.multiplier}x.`;
   for (const word of reply.split(" ")) {
-    await new Promise((r) => setTimeout(r, 25));
+    if (!demoReply) await new Promise((r) => setTimeout(r, 25));
     yield { type: "text", text: word + " " };
   }
   yield {

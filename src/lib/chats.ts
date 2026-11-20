@@ -110,3 +110,8 @@ export async function saveAssistantMessage(
     walletDebit: m.walletDebit,
   });
 }
+
+/** Stores a consensus card with the chat. `content` is the JSON shown in the card. */
+export async function saveConsensus(db: Db, chatId: string, content: string, debit: number): Promise<void> {
+  await db.insert(messages).values({ chatId, role: "consensus", content, walletDebit: debit });
+}

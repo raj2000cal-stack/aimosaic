@@ -12,6 +12,7 @@ export async function GET() {
     plan: ctx.plan.name,
     premiumModels: ctx.plan.premiumModels,
     email: ctx.email,
+    isAdmin: ctx.isAdmin,
     demoMode: isDemoMode(),
     persistence: ctx.db !== null,
   });

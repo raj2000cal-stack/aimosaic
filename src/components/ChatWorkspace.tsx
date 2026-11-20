@@ -17,9 +17,18 @@ interface Answer {
   done: boolean;
   debit?: number;
 }
+interface Consensus {
+  answer: string;
+  agreements: string[];
+  disagreements: { point: string; positions: { model: string; says: string }[] }[];
+}
 interface Turn {
   prompt: string;
   answers: Answer[];
+  /** Set when Auto Mode chose the model. */
+  autoNote?: string;
+  consensus?: Consensus;
+  consensusState?: "loading" | "error";
 }
 interface WalletInfo {
   available: number;
@@ -27,6 +36,7 @@ interface WalletInfo {
   plan: string;
   premiumModels: boolean;
   email: string | null;
+  isAdmin?: boolean;
   demoMode: boolean;
   persistence: boolean;
 }
@@ -74,6 +84,9 @@ export default function ChatWorkspace() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [chatId, setChatId] = useState<string | null>(null);
   const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
+  const [autoMode, setAutoMode] = useState(false);
+  const [enhancing, setEnhancing] = useState(false);
+  const [beforeEnhance, setBeforeEnhance] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -131,7 +144,13 @@ export default function ChatWorkspace() {
     const loaded: Turn[] = [];
     for (const m of msgs) {
       if (m.role === "user") loaded.push({ prompt: m.content, answers: [] });
-      else if (m.role === "assistant" && loaded.length) {
+      else if (m.role === "consensus" && loaded.length) {
+        try {
+          loaded.at(-1)!.consensus = JSON.parse(m.content);
+        } catch {
+          // unreadable card: skip it
+        }
+      } else if (m.role === "assistant" && loaded.length) {
         loaded.at(-1)!.answers.push({
           modelId: m.modelId ?? "unknown",
           text: m.content,
@@ -240,17 +259,87 @@ export default function ChatWorkspace() {
     patchAnswer(turnIndex, modelId, { text, done: true, debit });
   }
 
+  const postJson = (url: string, body: unknown) =>
+    fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+  /** Prompt Enhancer: rewrites the draft and keeps the original for Undo. */
+  async function enhance() {
+    const original = input.trim();
+    if (!original || enhancing || busy) return;
+    setEnhancing(true);
+    setError(null);
+    try {
+      const res = await postJson("/api/enhance", { prompt: original });
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && typeof j.enhanced === "string") {
+        setBeforeEnhance(input);
+        setInput(j.enhanced);
+      } else setError(j.message ?? "Could not enhance the prompt.");
+    } catch {
+      setError("Could not enhance the prompt.");
+    }
+    setEnhancing(false);
+    loadWallet();
+  }
+
+  /** Consensus: one merged answer from a compared turn. */
+  async function buildConsensus(turnIndex: number) {
+    const turn = turns[turnIndex];
+    if (!turn || turn.consensusState === "loading") return;
+    const patch = (p: Partial<Turn>) => setTurns((cur) => cur.map((t, i) => (i === turnIndex ? { ...t, ...p } : t)));
+    patch({ consensusState: "loading" });
+    try {
+      const res = await postJson("/api/consensus", {
+        prompt: turn.prompt,
+        chatId,
+        answers: turn.answers.filter((a) => a.done && a.debit !== undefined).map((a) => ({ modelId: a.modelId, text: a.text })),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && j.consensus) patch({ consensus: j.consensus, consensusState: undefined });
+      else {
+        patch({ consensusState: "error" });
+        setError(j.message ?? "Could not build a consensus.");
+      }
+    } catch {
+      patch({ consensusState: "error" });
+    }
+    loadWallet();
+  }
+
   async function send() {
     const prompt = input.trim();
     if (!prompt || busy || selected.length === 0) return;
     setError(null);
     setBusy(true);
     setInput("");
+    setBeforeEnhance(null);
     const history = turns;
     const turnIndex = history.length;
+
+    // Auto Mode: ask the server which model suits this prompt.
+    let targets = selected;
+    let autoNote: string | undefined;
+    if (autoMode) {
+      try {
+        const res = await postJson("/api/route", { prompt });
+        const j = await res.json().catch(() => ({}));
+        if (res.ok && typeof j.modelId === "string") {
+          targets = [j.modelId];
+          autoNote = j.reason;
+        } else if (res.status === 402 || res.status === 429) {
+          setError(j.message ?? "Auto Mode is unavailable right now.");
+          setInput(prompt);
+          setBusy(false);
+          return;
+        }
+      } catch {
+        // fall back to the selected model
+      }
+    }
+
     setTurns([
       ...history,
-      { prompt, answers: selected.map((modelId) => ({ modelId, text: "", done: false })) },
+      { prompt, autoNote, answers: targets.map((modelId) => ({ modelId, text: "", done: false })) },
     ]);
     try {
       // Saved chats: create the chat on the first message.
@@ -267,7 +356,7 @@ export default function ChatWorkspace() {
         }
       }
       // The first model records the prompt before the others start, so it is saved once.
-      const [first, ...rest] = selected;
+      const [first, ...rest] = targets;
       const firstRun = runModel(turnIndex, first, prompt, history, activeChatId, true);
       await Promise.all([
         firstRun,
@@ -283,7 +372,7 @@ export default function ChatWorkspace() {
   }
 
   const pct = wallet ? Math.max(0, Math.min(100, (wallet.available / wallet.monthlyTokens) * 100)) : 0;
-  const comparing = selected.length > 1;
+  const comparing = !autoMode && selected.length > 1;
 
   return (
     <div className="flex h-dvh">
@@ -347,6 +436,11 @@ export default function ChatWorkspace() {
           {wallet?.email && (
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-2 text-xs text-muted">
               <span className="truncate" title={wallet.email}>{wallet.email}</span>
+              {wallet.isAdmin && (
+                <a href="/admin" className="shrink-0 font-medium text-ink hover:underline">
+                  Admin
+                </a>
+              )}
               <button onClick={() => void signOut()} className="shrink-0 font-medium text-ink hover:underline">
                 Sign out
               </button>
@@ -366,9 +460,11 @@ export default function ChatWorkspace() {
               onClick={() => setPickerOpen((o) => !o)}
               className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-sm hover:border-indigo-brand"
             >
-              {comparing
-                ? `Comparing ${selected.length} models`
-                : (byId.get(selected[0])?.displayName ?? "Choose model")}
+              {autoMode
+                ? "Auto Mode"
+                : comparing
+                  ? `Comparing ${selected.length} models`
+                  : (byId.get(selected[0])?.displayName ?? "Choose model")}
               <span className="ml-2 text-muted">▾</span>
             </button>
             {pickerOpen && (
@@ -377,13 +473,28 @@ export default function ChatWorkspace() {
                   Pick one model, or up to {MAX_COMPARE} to compare side by side.
                 </p>
                 <ul className="max-h-80 overflow-y-auto">
+                  <li>
+                    <button
+                      onClick={() => setAutoMode((v) => !v)}
+                      className={`mb-1 flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-line ${autoMode ? "bg-line" : ""}`}
+                    >
+                      <span>
+                        <span className={`mr-2 inline-block h-2 w-2 rounded-sm ${autoMode ? "bg-gold" : "bg-line ring-1 ring-muted/40"}`} />
+                        Auto Mode
+                      </span>
+                      <span className="text-xs text-muted">picks the model for you</span>
+                    </button>
+                  </li>
                   {models.map((m) => {
-                    const on = selected.includes(m.id);
+                    const on = !autoMode && selected.includes(m.id);
                     const isLocked = locked(m);
                     return (
                       <li key={m.id}>
                         <button
-                          onClick={() => toggleModel(m.id)}
+                          onClick={() => {
+                            setAutoMode(false);
+                            toggleModel(m.id);
+                          }}
                           disabled={isLocked}
                           title={isLocked ? "Available on paid plans" : undefined}
                           className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-line disabled:cursor-not-allowed disabled:opacity-50 ${on ? "bg-line" : ""}`}
@@ -436,6 +547,12 @@ export default function ChatWorkspace() {
                   <div className="ml-auto w-fit max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-indigo-brand px-4 py-2.5 text-white">
                     {t.prompt}
                   </div>
+                  {t.autoNote && (
+                    <p className="text-xs text-muted">
+                      <span className="font-semibold text-gold-ink">Auto Mode</span> chose{" "}
+                      {byId.get(t.answers[0]?.modelId)?.displayName ?? "a model"}. {t.autoNote}
+                    </p>
+                  )}
                   <div
                     className="grid gap-3"
                     style={{
@@ -461,6 +578,52 @@ export default function ChatWorkspace() {
                       );
                     })}
                   </div>
+                  {t.consensus ? (
+                    <article className="rounded-2xl border border-gold bg-surface-2 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gold-ink">Consensus</p>
+                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{t.consensus.answer}</p>
+                      {t.consensus.agreements.length > 0 && (
+                        <>
+                          <p className="mt-3 text-xs font-semibold text-ink">Where the models agree</p>
+                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted">
+                            {t.consensus.agreements.map((x, k) => (
+                              <li key={k}>{x}</li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                      {t.consensus.disagreements.length > 0 && (
+                        <>
+                          <p className="mt-3 text-xs font-semibold text-ink">Where they differ</p>
+                          <ul className="mt-1 space-y-2 text-sm text-muted">
+                            {t.consensus.disagreements.map((d, k) => (
+                              <li key={k}>
+                                <span className="text-ink">{d.point}</span>
+                                <ul className="mt-0.5 list-disc pl-5">
+                                  {d.positions.map((pos, n) => (
+                                    <li key={n}>
+                                      <span className="font-medium text-ink">{pos.model}:</span> {pos.says}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </article>
+                  ) : (
+                    t.answers.filter((a) => a.done && a.debit !== undefined).length >= 2 &&
+                    t.answers.every((a) => a.done) && (
+                      <button
+                        onClick={() => void buildConsensus(i)}
+                        disabled={t.consensusState === "loading"}
+                        className="rounded-full border border-gold px-4 py-1.5 text-sm font-medium text-gold-ink hover:bg-gold/10 disabled:opacity-50"
+                      >
+                        {t.consensusState === "loading" ? "Building consensus..." : "Build consensus"}
+                      </button>
+                    )
+                  )}
                 </div>
               ))}
               <div ref={bottomRef} />
@@ -486,6 +649,14 @@ export default function ChatWorkspace() {
                 className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted"
               />
               <button
+                onClick={() => void enhance()}
+                disabled={busy || enhancing || !input.trim()}
+                title="Rewrite this into a clearer, more detailed prompt"
+                className="rounded-xl border border-line bg-surface px-3 py-2 text-sm font-medium hover:border-indigo-brand disabled:opacity-40"
+              >
+                {enhancing ? "Enhancing" : "Enhance"}
+              </button>
+              <button
                 onClick={() => void send()}
                 disabled={busy || !input.trim()}
                 className="rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-on-gold disabled:opacity-40"
@@ -494,7 +665,20 @@ export default function ChatWorkspace() {
               </button>
             </div>
             <p className="mt-1.5 text-xs text-muted">
-              {input.trim()
+              {beforeEnhance !== null && (
+                <button
+                  onClick={() => {
+                    setInput(beforeEnhance);
+                    setBeforeEnhance(null);
+                  }}
+                  className="mr-2 font-medium text-indigo-brand hover:underline"
+                >
+                  Undo enhance
+                </button>
+              )}
+              {autoMode
+                ? "Auto Mode picks one model for each message and shows which one it chose."
+                : input.trim()
                 ? `This message will use at most ${fmt(maxCost)} tokens across ${selected.length} model${selected.length > 1 ? "s" : ""}. You are charged only for what is actually used.`
                 : "Standard models use tokens at 1x. Premium models use 4x."}
             </p>

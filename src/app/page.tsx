@@ -20,9 +20,9 @@ const features: { title: string; body: string; live: boolean }[] = [
   { title: "Compare Mode", body: "Send one prompt to up to four models and read the answers side by side.", live: true },
   { title: "Transparent wallet", body: "See your balance, each model's rate and the cost of a message before you send it.", live: true },
   { title: "Saved chats", body: "Every conversation is kept in your sidebar, ready to reopen or delete.", live: true },
-  { title: "Consensus", body: "One merged answer showing where the models agree and where they differ.", live: false },
-  { title: "Auto Mode", body: "Let AIMosaic pick the best-suited model for each question.", live: false },
-  { title: "Prompt Enhancer", body: "Turn a rough idea into a clear, detailed prompt in one click.", live: false },
+  { title: "Consensus", body: "One merged answer showing where the models agree and where they differ.", live: true },
+  { title: "Auto Mode", body: "Let AIMosaic pick the best-suited model for each question.", live: true },
+  { title: "Prompt Enhancer", body: "Turn a rough idea into a clear, detailed prompt in one click.", live: true },
   { title: "Files and Projects", body: "Attach PDFs, documents and images, and keep knowledge together by project.", live: false },
   { title: "Experts", body: "Build custom assistants with their own instructions, knowledge and model.", live: false },
 ];

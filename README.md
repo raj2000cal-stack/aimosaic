@@ -35,6 +35,10 @@ With `DATABASE_URL` set, the workspace requires sign-in (email and password). Wi
 - `SIGNUP_PLAN`: the plan new accounts start on (`free` by default). Free accounts cannot use premium (4x) models.
 - To change one user's plan by hand: `update users set plan_id = 'plus' where email = '...';` and credit their wallet.
 
+## Admin access
+
+Set `ADMIN_EMAILS` to a comma-separated list of account emails. Those accounts see an Admin link in the workspace and can open `/admin`. Everyone else gets "Page not found".
+
 ## Check the model catalogue
 
 `npm run models:check` compares `src/lib/catalog.ts` with OpenRouter's live model list and prices. Run it, fix any `MISSING` or `PRICE` lines in the catalogue, and re-run until it is clean.
@@ -57,7 +61,12 @@ With `DATABASE_URL` set, the workspace requires sign-in (email and password). Wi
 | Plan limits: premium models locked on the Free plan | Done |
 | Rate limits: chat, sign-in attempts, sign-ups | Done (Postgres-backed) |
 | Model gateway | Demo mode + OpenRouter streaming |
-| Compare Mode, up to 4 models | Basic version done |
+| Compare Mode, up to 4 models | Done |
+| Consensus: merged answer with agreements and disagreements, saved with the chat | Done |
+| Auto Mode: picks a model per message (routing table in `src/lib/features.ts`) | Done; tune the table from real usage |
+| Prompt Enhancer with undo | Done |
+| Monthly wallet reset with rollover (capped at one month) and expiry ledger rows | Done, tested |
+| Admin console at `/admin`: usage, cost by model, users by cost, plan and token changes | Done |
 | Token policy, privacy, terms and refund pages | Drafts, marked for legal review |
 | Model catalogue | Placeholder ids and prices; run `npm run models:check` |
 
@@ -65,10 +74,10 @@ With `DATABASE_URL` set, the workspace requires sign-in (email and password). Wi
 
 - Email verification and password reset (need an email-sending service)
 - Billing (Stripe, Razorpay), top-ups, monthly wallet reset and rollover
-- Admin console
+- Admin: switching models on and off, and revenue or margin (needs billing)
 - Content moderation
 - Release of reservations left behind if the server crashes mid-reply
-- Consensus, Auto Mode, Prompt Enhancer, file uploads
+- File uploads, Projects and Experts
 
 ## Before going public
 
