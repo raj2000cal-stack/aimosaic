@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AIMosaic
 
-## Getting Started
+Multi-model AI workspace: one subscription, many models, side-by-side comparison and a transparent token wallet.
 
-First, run the development server:
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000  (workspace at /app)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+With no keys set the app runs in **demo mode**: replies are canned samples, but the wallet metering is real.
+To get real model answers, copy `.env.example` to `.env.local` and set `OPENROUTER_API_KEY`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm test           # wallet metering tests
+npm run typecheck
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## What is built so far
 
-## Learn More
+| Area | Status |
+| --- | --- |
+| Next.js app, brand theme, landing page | Done |
+| Database schema (`src/db/schema.ts`, Drizzle + Postgres) | Written, not yet connected |
+| Plan and model catalogue (`src/lib/catalog.ts`) | Done, with placeholder model ids and prices |
+| Model gateway (`src/lib/gateway.ts`) | Demo mode + OpenRouter streaming |
+| Token wallet, reserve and settle (`src/lib/wallet.ts`) | Done in memory, tested |
+| Chat with streaming and model picker | Done (history kept in the browser session only) |
+| Compare Mode, up to 4 models | Basic version done |
 
-To learn more about Next.js, take a look at the following resources:
+## Not built yet
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Sign-in (everyone is one demo user; the wallet resets when the server restarts)
+- Postgres persistence for chats, wallets and the ledger
+- Consensus, Auto Mode, Prompt Enhancer, file uploads
+- Billing (Stripe, Razorpay), top-ups, refunds
+- Admin console, rate limits, moderation
+- Legal pages
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Before going live
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Check every `providerModelId` and price in `src/lib/catalog.ts` against the OpenRouter model list. They are placeholders.
+2. Set each model's multiplier from real cost so the worst-case subscriber costs less than the plan price.
+3. Do not expose this build publicly: there is no sign-in or rate limiting, so anyone could spend your model credit.
