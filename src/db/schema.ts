@@ -14,15 +14,6 @@ import {
 const id = () => uuid("id").primaryKey().defaultRandom();
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
-export const users = pgTable("users", {
-  id: id(),
-  authId: text("auth_id").notNull().unique(), // id from the auth provider
-  email: text("email").notNull().unique(),
-  name: text("name"),
-  role: text("role").notNull().default("user"), // user | admin
-  createdAt: createdAt(),
-});
-
 export const plans = pgTable("plans", {
   id: text("id").primaryKey(), // free | plus | pro | team
   name: text("name").notNull(),
@@ -31,6 +22,17 @@ export const plans = pgTable("plans", {
   monthlyTokens: bigint("monthly_tokens", { mode: "number" }).notNull(),
   premiumModels: boolean("premium_models").notNull().default(false),
   rolloverMonths: integer("rollover_months").notNull().default(0),
+});
+
+export const users = pgTable("users", {
+  id: id(),
+  authId: text("auth_id").notNull().unique(), // id from the auth provider
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  passwordHash: text("password_hash"), // scrypt; null for accounts without a password
+  planId: text("plan_id").notNull().default("free").references(() => plans.id),
+  role: text("role").notNull().default("user"), // user | admin
+  createdAt: createdAt(),
 });
 
 export const subscriptions = pgTable("subscriptions", {
@@ -142,4 +144,23 @@ export const files = pgTable("files", {
   sizeBytes: integer("size_bytes").notNull(),
   storageKey: text("storage_key").notNull(),
   createdAt: createdAt(),
+});
+
+/** Sign-in sessions. `id` is the SHA-256 of the cookie token, never the token itself. */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("sessions_user_idx").on(t.userId)],
+);
+
+/** Fixed-window rate limit counters, shared by all server instances. */
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  count: integer("count").notNull(),
 });

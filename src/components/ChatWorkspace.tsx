@@ -1,6 +1,7 @@
 "use client";
 
 import ThemeToggle from "./ThemeToggle";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface ModelOption {
@@ -24,6 +25,8 @@ interface WalletInfo {
   available: number;
   monthlyTokens: number;
   plan: string;
+  premiumModels: boolean;
+  email: string | null;
   demoMode: boolean;
   persistence: boolean;
 }
@@ -72,6 +75,25 @@ export default function ChatWorkspace() {
   const [chatId, setChatId] = useState<string | null>(null);
   const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  const loadWallet = useCallback(() => {
+    fetch("/api/wallet")
+      .then((r) => {
+        if (r.status === 401) {
+          router.replace("/login");
+          return null;
+        }
+        return r.json();
+      })
+      .then((w) => w && setWallet(w))
+      .catch(() => undefined);
+  }, [router]);
+
+  async function signOut() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+    router.push("/");
+  }
 
   const refreshChats = useCallback(() => {
     fetch("/api/chats")
@@ -89,11 +111,8 @@ export default function ChatWorkspace() {
         setSelected(list.length ? [list[0].id] : []);
       })
       .catch(() => setError("Could not load models."));
-    fetch("/api/wallet")
-      .then((r) => r.json())
-      .then(setWallet)
-      .catch(() => undefined);
-  }, [refreshChats]);
+    loadWallet();
+  }, [refreshChats, loadWallet]);
 
   function newChat() {
     setTurns([]);
@@ -149,7 +168,11 @@ export default function ChatWorkspace() {
     return sum + (estimate(historyText(id) + input) + MAX_OUTPUT_TOKENS) * m.multiplier;
   }, 0);
 
+  const locked = (m: ModelOption) => m.tier === "premium" && wallet !== null && !wallet.premiumModels;
+
   const toggleModel = (id: string) => {
+    const m = byId.get(id);
+    if (m && locked(m)) return;
     setSelected((cur) => {
       if (cur.includes(id)) return cur.length > 1 ? cur.filter((x) => x !== id) : cur;
       return cur.length >= MAX_COMPARE ? cur : [...cur, id];
@@ -254,10 +277,7 @@ export default function ChatWorkspace() {
       setError("Something went wrong. Please try again.");
     } finally {
       setBusy(false);
-      fetch("/api/wallet")
-        .then((r) => r.json())
-        .then(setWallet)
-        .catch(() => undefined);
+      loadWallet();
       refreshChats();
     }
   }
@@ -324,6 +344,14 @@ export default function ChatWorkspace() {
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
             <div className="h-full rounded-full bg-gold" style={{ width: `${pct}%` }} />
           </div>
+          {wallet?.email && (
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-2 text-xs text-muted">
+              <span className="truncate" title={wallet.email}>{wallet.email}</span>
+              <button onClick={() => void signOut()} className="shrink-0 font-medium text-ink hover:underline">
+                Sign out
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -351,11 +379,14 @@ export default function ChatWorkspace() {
                 <ul className="max-h-80 overflow-y-auto">
                   {models.map((m) => {
                     const on = selected.includes(m.id);
+                    const isLocked = locked(m);
                     return (
                       <li key={m.id}>
                         <button
                           onClick={() => toggleModel(m.id)}
-                          className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-line ${on ? "bg-line" : ""}`}
+                          disabled={isLocked}
+                          title={isLocked ? "Available on paid plans" : undefined}
+                          className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-line disabled:cursor-not-allowed disabled:opacity-50 ${on ? "bg-line" : ""}`}
                         >
                           <span>
                             <span className={`mr-2 inline-block h-2 w-2 rounded-sm ${on ? "bg-gold" : "bg-line ring-1 ring-muted/40"}`} />
@@ -364,7 +395,7 @@ export default function ChatWorkspace() {
                           <span
                             className={`rounded px-1.5 py-0.5 text-xs ${m.tier === "premium" ? "bg-purple-brand/25 text-ink" : "bg-surface text-muted"}`}
                           >
-                            {m.multiplier}x
+                            {isLocked ? "Paid plans" : `${m.multiplier}x`}
                           </span>
                         </button>
                       </li>

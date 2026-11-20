@@ -1,12 +1,18 @@
 import { costUsd, estimateTokens, getModel } from "@/lib/catalog";
 import { streamChat, type ChatMessage, type Usage } from "@/lib/gateway";
 import { ownsChat, saveAssistantMessage, saveUserMessage } from "@/lib/chats";
-import { MAX_OUTPUT_TOKENS, getContext } from "@/lib/server";
+import { LIMITS, allow, sameOrigin } from "@/lib/ratelimit";
+import { MAX_OUTPUT_TOKENS, getContext, unauthorised } from "@/lib/server";
 
 /** Separates the streamed answer text from the trailing JSON metadata. */
 const META_SEPARATOR = "\u001e";
 
 export async function POST(req: Request) {
+  if (!sameOrigin(req)) return Response.json({ error: "Request not allowed" }, { status: 403 });
+  const ctx = await getContext();
+  if (!ctx) return unauthorised();
+  const { userId, wallet, db } = ctx;
+
   let body: { modelId?: string; messages?: ChatMessage[]; chatId?: string; recordPrompt?: boolean };
   try {
     body = await req.json();
@@ -26,7 +32,18 @@ export async function POST(req: Request) {
     return Response.json({ error: "Conversation too long" }, { status: 413 });
   }
 
-  const { userId, wallet, db } = await getContext();
+  if (model.tier === "premium" && !ctx.plan.premiumModels) {
+    return Response.json(
+      { error: "plan_required", message: `${model.displayName} is a premium model. Upgrade your plan to use it.` },
+      { status: 403 },
+    );
+  }
+  if (db && !(await allow(db, `chat:${userId}`, LIMITS.chat))) {
+    return Response.json(
+      { error: "rate_limited", message: "You are sending messages too quickly. Wait a minute and try again." },
+      { status: 429 },
+    );
+  }
 
   // Saved chats: the chat must belong to this user.
   const chatId = db && typeof body.chatId === "string" ? body.chatId : null;

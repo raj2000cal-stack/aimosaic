@@ -27,32 +27,52 @@ npm run build
 
 Never commit `.env.local` or paste the connection string anywhere public: it contains the database password.
 
+## Accounts
+
+With `DATABASE_URL` set, the workspace requires sign-in (email and password). Without it, the app runs as a single demo user.
+
+- `BETA_INVITE_CODE`: set this to keep sign-up invite-only during the beta.
+- `SIGNUP_PLAN`: the plan new accounts start on (`free` by default). Free accounts cannot use premium (4x) models.
+- To change one user's plan by hand: `update users set plan_id = 'plus' where email = '...';` and credit their wallet.
+
+## Check the model catalogue
+
+`npm run models:check` compares `src/lib/catalog.ts` with OpenRouter's live model list and prices. Run it, fix any `MISSING` or `PRICE` lines in the catalogue, and re-run until it is clean.
+
+## Deploy (Vercel)
+
+1. Import the GitHub repository at vercel.com.
+2. Add environment variables: `DATABASE_URL`, `OPENROUTER_API_KEY`, `BETA_INVITE_CODE`, `SIGNUP_PLAN`.
+3. Run `npm run db:migrate` once against the production database (from your machine with `.env.local` pointing at it).
+4. Deploy. Set a monthly spend limit on the OpenRouter key before sharing the link.
+
 ## What is built so far
 
 | Area | Status |
 | --- | --- |
-| Next.js app, brand theme, landing page | Done |
-| Database schema and migration (`src/db/schema.ts`, `drizzle/`) | Done |
-| Plan and model catalogue (`src/lib/catalog.ts`) | Done, with placeholder model ids and prices |
-| Model gateway (`src/lib/gateway.ts`) | Demo mode + OpenRouter streaming |
-| Token wallet, reserve and settle | Done: in memory (`wallet.ts`) and Postgres (`wallet-pg.ts`), both tested |
-| Wallet ledger with real cost per message | Done (Postgres) |
-| Chat with streaming and model picker | Done |
-| Saved chats: list, reopen, delete | Done (needs `DATABASE_URL`) |
+| Home page, light and dark themes | Done |
+| Sign-up, sign-in, sign-out (email and password, hashed with scrypt, server-side sessions) | Done, tested |
+| Invite-only beta switch | Done |
+| Per-user wallet, ledger and saved chats (Postgres) | Done, tested |
+| Plan limits: premium models locked on the Free plan | Done |
+| Rate limits: chat, sign-in attempts, sign-ups | Done (Postgres-backed) |
+| Model gateway | Demo mode + OpenRouter streaming |
 | Compare Mode, up to 4 models | Basic version done |
+| Token policy, privacy, terms and refund pages | Drafts, marked for legal review |
+| Model catalogue | Placeholder ids and prices; run `npm run models:check` |
 
 ## Not built yet
 
-- Sign-in (everyone is one demo user sharing one wallet)
-- Monthly wallet reset, rollover and top-ups
+- Email verification and password reset (need an email-sending service)
+- Billing (Stripe, Razorpay), top-ups, monthly wallet reset and rollover
+- Admin console
+- Content moderation
 - Release of reservations left behind if the server crashes mid-reply
 - Consensus, Auto Mode, Prompt Enhancer, file uploads
-- Billing (Stripe, Razorpay), refunds
-- Admin console, rate limits, moderation
-- Legal pages
 
-## Before going live
+## Before going public
 
-1. Check every `providerModelId` and price in `src/lib/catalog.ts` against the OpenRouter model list. They are placeholders.
+1. Run `npm run models:check` and fix the catalogue.
 2. Set each model's multiplier from real cost so the worst-case subscriber costs less than the plan price.
-3. Do not expose this build publicly: there is no sign-in or rate limiting, so anyone could spend your model credit.
+3. Have a lawyer review the four policy pages and fill in the bracketed placeholders.
+4. Add billing before charging anyone; until then every account is free.

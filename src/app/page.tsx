@@ -296,9 +296,11 @@ export default function Home() {
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 text-sm text-muted md:flex-row md:items-center md:justify-between">
           <Logo />
           <p>© 2026 AIMosaic. Model names are trademarks of their respective owners.</p>
-          <div className="flex gap-5">
-            <a href="#pricing" className="hover:text-ink">Pricing</a>
-            <a href="#faq" className="hover:text-ink">FAQ</a>
+          <div className="flex flex-wrap gap-5">
+            <Link href="/token-policy" className="hover:text-ink">Token policy</Link>
+            <Link href="/privacy" className="hover:text-ink">Privacy</Link>
+            <Link href="/terms" className="hover:text-ink">Terms</Link>
+            <Link href="/refunds" className="hover:text-ink">Refunds</Link>
           </div>
         </div>
       </footer>
